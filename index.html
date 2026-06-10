@@ -268,6 +268,18 @@
     .notes-inp:focus { border-color: var(--txt-2); background: var(--surface); }
     .notes-inp::placeholder { color: var(--txt-3); }
 
+    /* ── Flower ── */
+    .flower-wrap {
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      width: 56px; height: 70px; margin-left: auto;
+    }
+    .flower-wrap svg { overflow: visible; }
+    @keyframes petalBloom {
+      from { transform: scale(0.2); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .petal-new { animation: petalBloom 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
     /* shared divider */
     .s-div { display: flex; align-items: center; gap: 8px; padding: 10px 20px 4px; margin-top: 4px; }
     .s-div-line { flex: 1; height: 1px; background: var(--cs-line); }
@@ -619,8 +631,9 @@ function captureHistory(data) {
         const prog = g.progress[i];
         return { text: g.text, type: g.type, target: g.target||1, count: prog.count||0, done: !!prog.done, hit: goalHit(g, prog) };
       });
-      const allGoals = [...personal, ...shared];
-      return { name: p.name, goals: allGoals, done: allGoals.filter(g=>g.hit).length, total: allGoals.length };
+      const allGoals  = [...personal, ...shared];
+      const doneCount = allGoals.filter(g=>g.hit).length;
+      return { name: p.name, goals: allGoals, done: doneCount, total: allGoals.length, flowerDone: doneCount, personIdx: i };
     }),
     sharedGoals: [] // flattened into persons above
   };
@@ -640,20 +653,39 @@ const DEFAULTS = {
   weekId:        CW
 };
 
+// Firebase returns numeric-keyed objects instead of arrays — convert back
+function toArr(val) {
+  if (Array.isArray(val)) return val;
+  if (val && typeof val === 'object') {
+    const keys = Object.keys(val).sort((a,b) => Number(a) - Number(b));
+    if (keys.length && keys.every(k => !isNaN(k))) return keys.map(k => val[k]);
+  }
+  return [];
+}
+
+function normalizeState(d) {
+  // personalGoals: must be array of 2 arrays
+  const pg = d.personalGoals;
+  if (!Array.isArray(pg)) {
+    d.personalGoals = [toArr(pg?.[0]), toArr(pg?.[1])];
+  } else {
+    d.personalGoals = [toArr(pg[0]), toArr(pg[1])];
+  }
+  d.sharedGoals = toArr(d.sharedGoals);
+  d.history     = toArr(d.history);
+  if (!Array.isArray(d.persons) || d.persons.length < 2)
+    d.persons = structuredClone(DEFAULTS.persons);
+  d.sharedGoals.forEach(ensureProgress);
+  return d;
+}
+
 function load() {
   try {
     const raw = localStorage.getItem('accord-v3');
     if (!raw) return structuredClone(DEFAULTS);
-    const d = JSON.parse(raw);
-    if (!Array.isArray(d.personalGoals))    d.personalGoals = [[],[]];
-    if (!Array.isArray(d.personalGoals[0])) d.personalGoals[0] = [];
-    if (!Array.isArray(d.personalGoals[1])) d.personalGoals[1] = [];
-    if (!Array.isArray(d.sharedGoals))      d.sharedGoals = [];
-    if (!Array.isArray(d.history))          d.history = [];
-    if (!Array.isArray(d.persons))          d.persons = structuredClone(DEFAULTS.persons);
+    const d = normalizeState(JSON.parse(raw));
 
-    // Migrate shared goals to per-person progress model
-    for (const g of d.sharedGoals) ensureProgress(g);
+    // ensureProgress already called inside normalizeState
 
     if (d.weekId !== CW) {
       const rec = captureHistory(d);
@@ -744,10 +776,8 @@ async function syncIn() {
       _lastRemoteHash = remoteHash;
       delete remote._ts;
       const notifLocal = S.notifications;
-      S = Object.assign(structuredClone(DEFAULTS), remote);
+      S = Object.assign(structuredClone(DEFAULTS), normalizeState(remote));
       S.notifications = notifLocal;
-      if (!Array.isArray(S.history)) S.history = [];
-      if (Array.isArray(S.sharedGoals)) S.sharedGoals.forEach(ensureProgress);
       localStorage.setItem('accord-v3', JSON.stringify(S));
       render();
     }
@@ -845,6 +875,79 @@ function goalRow(g, pi, shared) {
 </div>`;
 }
 
+function flowerSvg(done, pi, size = 50) {
+  const cx = 28, cy = 28;
+  const petalColors  = ['#A8C4E0', '#E8A8B8'];   // navy-blue / rose
+  const pColor       = petalColors[pi];
+  const stemColor    = '#7A9E7E';
+  const leafColor    = '#8FB88F';
+  const centerColor  = '#F5D580';
+
+  const petals    = Math.min(done, 8);
+  const showStem  = done >= 1;
+  const showLeaf1 = done >= 2;
+  const showLeaf2 = done >= 4;
+  const showCenter = petals >= 5;
+
+  const parts = [];
+
+  // Ground dot when empty
+  if (!showStem) {
+    parts.push(`<circle cx="${cx}" cy="66" r="3.5" fill="${stemColor}" opacity="0.2"/>`);
+  }
+
+  // Stem
+  if (showStem) {
+    parts.push(`<path d="M ${cx} 41 C ${cx-3} 50 ${cx+2} 56 ${cx} 66" stroke="${stemColor}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`);
+  }
+
+  // Leaves
+  if (showLeaf1) {
+    parts.push(`<path d="M ${cx} 54 Q 14 49 12 58 Q 19 62 ${cx} 56" fill="${leafColor}" opacity="0.8"/>`);
+  }
+  if (showLeaf2) {
+    parts.push(`<path d="M ${cx} 47 Q 42 42 44 51 Q 37 55 ${cx} 49" fill="${leafColor}" opacity="0.8"/>`);
+  }
+
+  // Petals — 8 elongated ellipses in a ring
+  for (let i = 0; i < 8; i++) {
+    const angle = i * 45;
+    const rad   = angle * Math.PI / 180;
+    const r     = 13;
+    const px    = (cx + r * Math.sin(rad)).toFixed(2);
+    const py    = (cy - r * Math.cos(rad)).toFixed(2);
+    const vis   = i < petals;
+    parts.push(
+      `<ellipse cx="${px}" cy="${py}" rx="5" ry="9"` +
+      ` transform="rotate(${angle} ${px} ${py})"` +
+      ` fill="${pColor}"` +
+      ` opacity="${vis ? '0.92' : '0'}"` +
+      ` style="transition:opacity 0.35s ease ${(i * 0.06).toFixed(2)}s"/>`
+    );
+  }
+
+  // Center
+  if (petals > 0) {
+    const r = showCenter ? 5.5 : 3.5;
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${centerColor}" opacity="${showCenter ? '1' : '0.7'}" style="transition:all 0.35s ease"/>`);
+    if (showCenter) {
+      parts.push(`<circle cx="${cx}" cy="${cy}" r="2.5" fill="white" opacity="0.5"/>`);
+    }
+  }
+
+  const title = done === 0 ? 'Complete goals to grow your flower'
+    : done < 3 ? `${done} goal${done>1?'s':''} done — keep going`
+    : petals >= 8 ? 'Full bloom — amazing week!'
+    : `${done} goals done this week`;
+
+  const h = Math.round(size * 72 / 56);
+  return `<div class="flower-wrap" title="${title}" style="width:${size+6}px;height:${h+6}px">
+    <svg viewBox="0 0 56 72" xmlns="http://www.w3.org/2000/svg" style="width:${size}px;height:${h}px">
+      ${parts.join('\n      ')}
+    </svg>
+  </div>`;
+}
+
 function col(pi) {
   const p    = S.persons[pi];
   const pcls = pi === 0 ? 'p1' : 'p2';
@@ -875,6 +978,7 @@ function col(pi) {
       <input class="p-name" value="${esc(p.name)}" onchange="rename(${pi},this.value)" onblur="rename(${pi},this.value)" maxlength="30" aria-label="Person name">
       <div class="p-sub">Weekly goals</div>
     </div>
+    ${flowerSvg(prog ? prog.done : 0, pi)}
   </div>
   <div class="card">
     <div class="card-hdr">
@@ -904,20 +1008,28 @@ function renderHistory() {
     const pct = allGoals ? Math.round(allDone/allGoals*100) : 0;
     const pillCls = statPillClass(pct);
 
-    const personsHtml = rec.persons.map(p => {
-      const pPct = p.total ? Math.round(p.done/p.total*100) : null;
+    const personsHtml = rec.persons.map((p, pIdx) => {
+      const pPct     = p.total ? Math.round(p.done/p.total*100) : null;
       const pPillCls = pPct !== null ? statPillClass(pPct) : '';
+      const pi       = p.personIdx !== undefined ? p.personIdx : pIdx;
+      const bloom    = p.flowerDone || 0;
+      const petals   = Math.min(bloom, 8);
       const goalsHtml = p.goals.map(g => {
         const hitCls = g.hit ? 'hit' : 'miss';
         const icon   = g.hit ? 'check-circle-2' : 'circle';
         const detail = g.type === 'counter' ? ` <span style="color:var(--txt-3)">${g.count}/${g.target}×</span>` : '';
         return `<div class="hist-goal-row ${hitCls}"><i data-lucide="${icon}"></i>${esc(g.text)}${detail}</div>`;
       }).join('');
+      const bloomLabel = bloom === 0 ? 'No bloom' : petals >= 8 ? 'Full bloom' : `${petals} petal${petals!==1?'s':''}`;
       return `
 <div class="hist-person">
   <div class="hist-person-name">
     <span>${esc(p.name)}</span>
-    ${pPct !== null ? `<span class="stat-pill ${pPillCls}">${pPct}%</span>` : ''}
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+      <span style="font-size:11px;color:var(--txt-3);font-weight:400">${bloomLabel}</span>
+      ${flowerSvg(bloom, pi, 28)}
+      ${pPct !== null ? `<span class="stat-pill ${pPillCls}">${pPct}%</span>` : ''}
+    </div>
   </div>
   ${goalsHtml || '<div style="font-size:12px;color:var(--txt-3)">No personal goals</div>'}
 </div>`;
