@@ -705,8 +705,9 @@ function fbUrl() {
   return `${FB_DB_URL}/rooms/${roomId()}.json`;
 }
 
-let _lastRemoteTs = 0;
-let _syncState    = 'off'; // off | live | syncing | error
+let _lastRemoteTs  = 0;
+let _lastRemoteHash = '';
+let _syncState     = 'off'; // off | live | syncing | error
 
 function setSyncDot(state) {
   _syncState = state;
@@ -721,8 +722,10 @@ async function syncOut() {
   setSyncDot('syncing');
   try {
     const body = Object.assign({}, S, { _ts: Date.now() });
-    await fetch(fbUrl(), { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
-    _lastRemoteTs = body._ts;
+    const bodyStr = JSON.stringify(body);
+    await fetch(fbUrl(), { method: 'PUT', body: bodyStr, headers: { 'Content-Type': 'application/json' } });
+    _lastRemoteTs   = body._ts;
+    _lastRemoteHash = bodyStr;
     setSyncDot('live');
   } catch { setSyncDot('error'); }
 }
@@ -733,8 +736,12 @@ async function syncIn() {
     if (!res.ok) { setSyncDot('error'); return; }
     const remote = await res.json();
     if (!remote || typeof remote !== 'object') { setSyncDot('live'); return; }
-    if ((remote._ts || 0) > _lastRemoteTs) {
-      _lastRemoteTs = remote._ts;
+    const remoteTs   = remote._ts || 0;
+    const remoteHash = JSON.stringify(remote);
+    // Apply if remote is newer OR has different content (catches partner changes)
+    if (remoteTs > _lastRemoteTs || remoteHash !== _lastRemoteHash) {
+      _lastRemoteTs   = remoteTs;
+      _lastRemoteHash = remoteHash;
       delete remote._ts;
       const notifLocal = S.notifications;
       S = Object.assign(structuredClone(DEFAULTS), remote);
