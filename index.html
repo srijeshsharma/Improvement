@@ -190,37 +190,50 @@
     .ctr-btn:disabled { opacity: 0.3; pointer-events: none; }
     .ctr-btn i { width: 12px; height: 12px; }
 
-    .g-acts { display: none; gap: 3px; flex-shrink: 0; }
-    .g-row:hover .g-acts { display: flex; }
-    .g-row.confirming .g-acts { display: flex; }
-    .del-btn {
-      width: 22px; height: 22px; border-radius: 5px;
-      border: none; background: transparent; cursor: pointer;
+    /* "..." menu */
+    .g-menu-wrap { position: relative; flex-shrink: 0; }
+    .more-btn {
+      width: 24px; height: 24px; border-radius: 5px; border: none;
+      background: transparent; cursor: pointer; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
       color: var(--txt-3); transition: all var(--tr);
     }
-    .del-btn:hover { background: #FEE2E2; color: #DC2626; }
-    .del-btn i { width: 13px; height: 13px; }
+    .more-btn:hover { background: var(--border-lt); color: var(--txt-2); }
+    .more-btn i { width: 14px; height: 14px; }
+    .g-dropdown {
+      display: none; position: absolute; right: 0; top: calc(100% + 4px); z-index: 50;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-sm); box-shadow: var(--sh-lg);
+      min-width: 130px; padding: 4px;
+    }
+    .g-menu-wrap.open .g-dropdown { display: block; }
+    .g-dd-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      font-size: 13px; font-weight: 500; border: none; background: none;
+      width: 100%; text-align: left; transition: background var(--tr); color: var(--txt-2);
+    }
+    .g-dd-item:hover { background: var(--border-lt); }
+    .g-dd-item.danger { color: #DC2626; }
+    .g-dd-item.danger:hover { background: #FEE2E2; }
+    .g-dd-item i { width: 13px; height: 13px; }
 
     /* inline delete confirmation */
-    .confirm-del {
-      display: none; align-items: center; gap: 6px; flex-shrink: 0;
-    }
+    .confirm-del { display: none; align-items: center; gap: 6px; flex-shrink: 0; }
     .g-row.confirming .confirm-del { display: flex; }
-    .g-row.confirming .g-acts { display: none !important; }
+    .g-row.confirming .g-menu-wrap { display: none; }
+    .g-row.confirming .notes-toggle { display: none; }
     .confirm-del-lbl { font-size: 12px; color: var(--txt-2); white-space: nowrap; }
     .confirm-yes {
       padding: 3px 10px; border-radius: 5px; border: none;
       background: #FEE2E2; color: #DC2626;
-      font-size: 12px; font-weight: 500; cursor: pointer;
-      transition: all var(--tr);
+      font-size: 12px; font-weight: 500; cursor: pointer; transition: all var(--tr);
     }
     .confirm-yes:hover { background: #FECACA; }
     .confirm-no {
       width: 20px; height: 20px; border-radius: 5px; border: none;
       background: transparent; color: var(--txt-3); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all var(--tr);
+      display: flex; align-items: center; justify-content: center; transition: all var(--tr);
     }
     .confirm-no:hover { background: var(--border-lt); color: var(--txt-1); }
     .confirm-no i { width: 12px; height: 12px; }
@@ -575,27 +588,44 @@ const CW = weekId();
 
 /* ───────── History helpers ───────── */
 
-function goalHit(g) {
-  return g.type === 'counter' ? (g.count||0) >= (g.target||1) : !!g.done;
+// For personal goals pass the goal itself; for shared goals pass g.progress[pi]
+function goalHit(g, prog) {
+  const state = prog || g;
+  return g.type === 'counter' ? (state.count||0) >= (g.target||1) : !!state.done;
+}
+
+function ensureProgress(g) {
+  if (!Array.isArray(g.progress)) {
+    g.progress = [
+      { done: g.done||false, count: g.count||0, notes: g.notes||'', _notesOpen: false },
+      { done: g.done||false, count: g.count||0, notes: g.notes||'', _notesOpen: false }
+    ];
+    delete g.done; delete g.count; delete g.notes; delete g._notesOpen;
+  }
+  if (!g.progress[0]) g.progress[0] = { done: false, count: 0, notes: '', _notesOpen: false };
+  if (!g.progress[1]) g.progress[1] = { done: false, count: 0, notes: '', _notesOpen: false };
 }
 
 function captureHistory(data) {
+  data.sharedGoals.forEach(ensureProgress);
   const record = {
     weekId:    data.weekId || CW,
     weekLabel: weekLabel(),
     persons: data.persons.map((p, i) => {
-      const goals = (data.personalGoals[i]||[]).map(g => ({
+      const personal = (data.personalGoals[i]||[]).map(g => ({
         text: g.text, type: g.type, target: g.target||1, count: g.count||0, done: !!g.done, hit: goalHit(g)
       }));
-      const done  = goals.filter(g=>g.hit).length;
-      return { name: p.name, goals, done, total: goals.length };
+      const shared = data.sharedGoals.map(g => {
+        const prog = g.progress[i];
+        return { text: g.text, type: g.type, target: g.target||1, count: prog.count||0, done: !!prog.done, hit: goalHit(g, prog) };
+      });
+      const allGoals = [...personal, ...shared];
+      return { name: p.name, goals: allGoals, done: allGoals.filter(g=>g.hit).length, total: allGoals.length };
     }),
-    sharedGoals: data.sharedGoals.map(g => ({
-      text: g.text, type: g.type, target: g.target||1, count: g.count||0, done: !!g.done, hit: goalHit(g)
-    }))
+    sharedGoals: [] // flattened into persons above
   };
-  record.sharedDone  = record.sharedGoals.filter(g=>g.hit).length;
-  record.sharedTotal = record.sharedGoals.length;
+  record.sharedDone  = 0;
+  record.sharedTotal = 0;
   return record;
 }
 
@@ -622,15 +652,18 @@ function load() {
     if (!Array.isArray(d.history))          d.history = [];
     if (!Array.isArray(d.persons))          d.persons = structuredClone(DEFAULTS.persons);
 
+    // Migrate shared goals to per-person progress model
+    for (const g of d.sharedGoals) ensureProgress(g);
+
     if (d.weekId !== CW) {
-      // Save history before resetting
       const rec = captureHistory(d);
-      const totalGoals = rec.persons.reduce((s,p)=>s+p.total,0) + rec.sharedTotal;
+      const totalGoals = rec.persons.reduce((s,p)=>s+p.total,0);
       if (totalGoals > 0) d.history.unshift(rec);
       // Reset completions, preserve goals and names
       for (const arr of d.personalGoals)
         for (const g of arr) { g.done = false; g.count = 0; }
-      for (const g of d.sharedGoals) { g.done = false; g.count = 0; }
+      for (const g of d.sharedGoals)
+        for (const prog of g.progress) { prog.done = false; prog.count = 0; }
       d.weekId = CW;
     }
     return d;
@@ -707,6 +740,7 @@ async function syncIn() {
       S = Object.assign(structuredClone(DEFAULTS), remote);
       S.notifications = notifLocal;
       if (!Array.isArray(S.history)) S.history = [];
+      if (Array.isArray(S.sharedGoals)) S.sharedGoals.forEach(ensureProgress);
       localStorage.setItem('accord-v3', JSON.stringify(S));
       render();
     }
@@ -720,27 +754,41 @@ setInterval(syncIn, 4000);
 /* ───────── Render ───────── */
 
 function progress(pi) {
-  const all = [...(S.personalGoals[pi]||[]), ...S.sharedGoals];
-  if (!all.length) return null;
-  const done = all.filter(goalHit).length;
-  return { done, total: all.length, pct: Math.round(done / all.length * 100) };
+  const pers = S.personalGoals[pi]||[];
+  const shar = S.sharedGoals;
+  const total = pers.length + shar.length;
+  if (!total) return null;
+  const done = pers.filter(g => goalHit(g)).length
+             + shar.filter(g => goalHit(g, g.progress[pi])).length;
+  return { done, total, pct: Math.round(done / total * 100) };
 }
 
 function goalRow(g, pi, shared) {
-  const s     = shared ? ' shared-row' : '';
-  const notes = esc(g.notes || '');
-  const notesOpen = g._notesOpen ? ' open' : '';
+  // For shared goals, each person has independent progress
+  const state      = shared ? (g.progress[pi] || {}) : g;
+  const done       = !!state.done;
+  const count      = state.count || 0;
+  const notes      = esc(state.notes || '');
+  const notesOpen  = state._notesOpen ? ' open' : '';
+  const s          = shared ? ' shared-row' : '';
+  const rowId      = `gr-${g.id}-${pi}`;
+  const menuId     = `gm-${g.id}-${pi}`;
 
   const actionsHtml = `
     <button class="notes-toggle${notesOpen}" onclick="toggleNotes('${g.id}',${pi},${shared})" title="Notes">
       <i data-lucide="chevron-down"></i>
     </button>
-    <div class="g-acts">
-      <button class="del-btn" onclick="askDel('${g.id}',${pi},${shared})" title="Remove"><i data-lucide="trash-2"></i></button>
+    <div class="g-menu-wrap" id="${menuId}">
+      <button class="more-btn" onclick="toggleMenu('${menuId}',event)"><i data-lucide="more-horizontal"></i></button>
+      <div class="g-dropdown">
+        <button class="g-dd-item danger" onclick="askDel('${g.id}',${pi},${shared})">
+          <i data-lucide="trash-2"></i>Delete goal
+        </button>
+      </div>
     </div>
     <div class="confirm-del">
-      <span class="confirm-del-lbl">Remove goal?</span>
-      <button class="confirm-yes" onclick="confirmDel('${g.id}',${pi},${shared})">Delete</button>
+      <span class="confirm-del-lbl">Delete?</span>
+      <button class="confirm-yes" onclick="confirmDel('${g.id}',${pi},${shared})">Yes</button>
       <button class="confirm-no" onclick="cancelDel('${g.id}',${pi},${shared})"><i data-lucide="x"></i></button>
     </div>`;
 
@@ -754,20 +802,20 @@ function goalRow(g, pi, shared) {
     </div>`;
 
   if (g.type === 'counter') {
-    const c = g.count||0, t = g.target||3;
-    const dots = Array.from({length:t},(_,i)=>`<span class="dot${i<c?' on':''}"></span>`).join('');
+    const t = g.target || 3;
+    const dots = Array.from({length:t},(_,i)=>`<span class="dot${i<count?' on':''}"></span>`).join('');
     return `
 <div class="g-wrap">
-  <div class="g-row${s}" id="gr-${g.id}">
-    <span class="g-text${c>=t?' done':''}">
+  <div class="g-row${s}" id="${rowId}">
+    <span class="g-text${count>=t?' done':''}">
       ${esc(g.text)}
       ${shared?`<span class="shared-tag"><i data-lucide="users"></i>Shared</span>`:''}
     </span>
     <div class="ctr">
       <div class="dots">${dots}</div>
-      <button class="ctr-btn" onclick="decr('${g.id}',${pi},${shared})" ${c<=0?'disabled':''} title="Undo one"><i data-lucide="minus"></i></button>
-      <span class="ctr-val">${c}/${t}</span>
-      <button class="ctr-btn" onclick="incr('${g.id}',${pi},${shared})" ${c>=t?'disabled':''} title="Add one"><i data-lucide="plus"></i></button>
+      <button class="ctr-btn" onclick="decr('${g.id}',${pi},${shared})" ${count<=0?'disabled':''} title="Undo one"><i data-lucide="minus"></i></button>
+      <span class="ctr-val">${count}/${t}</span>
+      <button class="ctr-btn" onclick="incr('${g.id}',${pi},${shared})" ${count>=t?'disabled':''} title="Add one"><i data-lucide="plus"></i></button>
     </div>
     ${actionsHtml}
   </div>
@@ -777,9 +825,9 @@ function goalRow(g, pi, shared) {
 
   return `
 <div class="g-wrap">
-  <div class="g-row${s}" id="gr-${g.id}">
-    <button class="chk${g.done?' on':''}" onclick="toggle('${g.id}',${pi},${shared})" title="${g.done?'Mark incomplete':'Mark complete'}"><i data-lucide="check"></i></button>
-    <span class="g-text${g.done?' done':''}">
+  <div class="g-row${s}" id="${rowId}">
+    <button class="chk${done?' on':''}" onclick="toggle('${g.id}',${pi},${shared})" title="${done?'Mark incomplete':'Mark complete'}"><i data-lucide="check"></i></button>
+    <span class="g-text${done?' done':''}">
       ${esc(g.text)}
       ${shared?`<span class="shared-tag"><i data-lucide="users"></i>Shared</span>`:''}
     </span>
@@ -953,34 +1001,54 @@ function rename(pi, val) {
   if (av) av.textContent = initials(S.persons[pi].name);
 }
 
+function getState(g, pi, shared) {
+  return shared ? g.progress[pi] : g;
+}
+
 function toggle(id, pi, shared) {
   const arr = shared ? S.sharedGoals : S.personalGoals[pi];
   const g = arr.find(g=>g.id===id);
-  if (g) g.done = !g.done;
+  if (!g) return;
+  const state = getState(g, pi, shared);
+  state.done = !state.done;
   save(); render();
 }
 
 function incr(id, pi, shared) {
   const arr = shared ? S.sharedGoals : S.personalGoals[pi];
   const g = arr.find(g=>g.id===id);
-  if (g) g.count = Math.min((g.count||0)+1, g.target);
+  if (!g) return;
+  const state = getState(g, pi, shared);
+  state.count = Math.min((state.count||0)+1, g.target);
   save(); render();
 }
 
 function decr(id, pi, shared) {
   const arr = shared ? S.sharedGoals : S.personalGoals[pi];
   const g = arr.find(g=>g.id===id);
-  if (g) g.count = Math.max((g.count||0)-1, 0);
+  if (!g) return;
+  const state = getState(g, pi, shared);
+  state.count = Math.max((state.count||0)-1, 0);
   save(); render();
 }
 
+function toggleMenu(menuId, event) {
+  event.stopPropagation();
+  const wrap = document.getElementById(menuId);
+  if (!wrap) return;
+  const wasOpen = wrap.classList.contains('open');
+  document.querySelectorAll('.g-menu-wrap.open').forEach(el => el.classList.remove('open'));
+  if (!wasOpen) wrap.classList.add('open');
+}
+
 function askDel(id, pi, shared) {
-  const row = document.getElementById(`gr-${id}`);
+  document.querySelectorAll('.g-menu-wrap.open').forEach(el => el.classList.remove('open'));
+  const row = document.getElementById(`gr-${id}-${pi}`);
   if (row) row.classList.add('confirming');
 }
 
 function cancelDel(id, pi, shared) {
-  const row = document.getElementById(`gr-${id}`);
+  const row = document.getElementById(`gr-${id}-${pi}`);
   if (row) row.classList.remove('confirming');
 }
 
@@ -993,23 +1061,31 @@ function confirmDel(id, pi, shared) {
 function toggleNotes(id, pi, shared) {
   const arr = shared ? S.sharedGoals : S.personalGoals[pi];
   const g = arr.find(g=>g.id===id);
-  if (g) g._notesOpen = !g._notesOpen;
-  // Toggle DOM directly to avoid full re-render losing textarea focus
-  const row = document.getElementById(`gr-${id}`);
+  if (!g) return;
+  const state = getState(g, pi, shared);
+  state._notesOpen = !state._notesOpen;
+  // Update DOM directly to preserve textarea content
+  const row = document.getElementById(`gr-${id}-${pi}`);
   if (row) {
-    const toggle = row.querySelector('.notes-toggle');
-    const area   = row.parentElement.querySelector('.notes-area');
-    if (toggle) toggle.classList.toggle('open');
-    if (area)   area.classList.toggle('open');
+    const btn  = row.querySelector('.notes-toggle');
+    const area = row.parentElement.querySelector('.notes-area');
+    if (btn)  btn.classList.toggle('open');
+    if (area) area.classList.toggle('open');
   }
 }
 
 function saveNotes(id, pi, shared, value) {
   const arr = shared ? S.sharedGoals : S.personalGoals[pi];
   const g = arr.find(g=>g.id===id);
-  if (g) g.notes = value;
+  if (!g) return;
+  getState(g, pi, shared).notes = value;
   save();
 }
+
+// Close menus on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.g-menu-wrap.open').forEach(el => el.classList.remove('open'));
+});
 
 /* ───────── Add Modal ───────── */
 
