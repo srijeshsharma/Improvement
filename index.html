@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rollie — Weekly Accountability</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button, input, textarea { font-family: inherit; }
+
+    :root {
+      --bg:         #F7F4F0;
+      --surface:    #FFFFFF;
+      --surface-2:  #FAFAF8;
+      --border:     #E4DDD4;
+      --border-lt:  #EDE8E2;
+
+      --txt-1: #19181A;
+      --txt-2: #6B645C;
+      --txt-3: #A89F95;
+
+      --c1:      #1E3348;
+      --c1-bg:   #EBF1F8;
+      --c1-line: #C4D5E8;
+
+      --c2:      #5B2C1E;
+      --c2-bg:   #F8EDE9;
+      --c2-line: #E5C4B8;
+
+      --cs:      #24483A;
+      --cs-bg:   #EBF3EE;
+      --cs-line: #B8D6C7;
+
+      --r:    14px;
+      --r-sm:  9px;
+      --sh:   0 1px 2px rgba(0,0,0,0.05), 0 4px 14px rgba(0,0,0,0.04);
+      --sh-lg: 0 8px 40px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+      --tr: 0.14s ease;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--txt-1);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .hdr { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .hdr-in {
+      max-width: 1160px; margin: 0 auto;
+      padding: 0 28px; height: 62px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .brand { display: flex; align-items: center; gap: 9px; flex: 1; }
+    .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.015em; }
+    .brand i { width: 18px; height: 18px; }
+
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--border); margin-left: 4px;
+      transition: background 0.3s;
+    }
+    .sync-dot.live   { background: #22C55E; }
+    .sync-dot.syncing { background: #F59E0B; }
+    .sync-dot.error  { background: #EF4444; }
+
+    .week-chip {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--border-lt); border: 1px solid var(--border);
+      border-radius: 999px; padding: 5px 13px;
+      font-size: 12px; font-weight: 500; color: var(--txt-2);
+    }
+    .week-chip i { width: 12px; height: 12px; }
+
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: var(--r-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--txt-2); transition: all var(--tr); flex-shrink: 0;
+    }
+    .icon-btn:hover { background: var(--border-lt); color: var(--txt-1); }
+    .icon-btn i { width: 15px; height: 15px; }
+    .icon-btn.active { background: var(--txt-1); color: white; border-color: var(--txt-1); }
+
+    /* ── Layout ── */
+    .main { max-width: 1160px; margin: 0 auto; padding: 32px 28px 60px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+    /* ── Person Column ── */
+    .pcol { display: flex; flex-direction: column; gap: 14px; }
+
+    .p-head {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--surface); border-radius: var(--r);
+      border: 1px solid var(--border); box-shadow: var(--sh); padding: 18px 22px;
+    }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 15px; flex-shrink: 0;
+    }
+    .p1 .avatar { background: var(--c1-bg); color: var(--c1); }
+    .p2 .avatar { background: var(--c2-bg); color: var(--c2); }
+    .p-meta { flex: 1; min-width: 0; }
+    .p-name {
+      width: 100%; background: none; border: none; outline: none;
+      font-size: 16px; font-weight: 600; letter-spacing: -0.015em;
+      color: var(--txt-1); padding: 0; cursor: text;
+    }
+    .p-name:focus { border-bottom: 1.5px solid var(--border); }
+    .p-sub { font-size: 12px; color: var(--txt-3); margin-top: 1px; }
+
+    /* progress */
+    .prog-wrap { padding: 0 20px 14px; }
+    .prog-bar { height: 3px; background: var(--border-lt); border-radius: 999px; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+    .p1 .prog-fill { background: var(--c1); }
+    .p2 .prog-fill { background: var(--c2); }
+    .prog-lbl { font-size: 11px; color: var(--txt-3); margin-top: 5px; }
+
+    /* ── Card ── */
+    .card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); box-shadow: var(--sh); overflow: hidden; }
+    .card-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; border-bottom: 1px solid var(--border-lt);
+    }
+    .card-title {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.065em;
+      text-transform: uppercase; color: var(--txt-3);
+    }
+    .card-title i { width: 12px; height: 12px; }
+    .card-body { padding: 4px 0; }
+    .empty { padding: 26px 20px; text-align: center; color: var(--txt-3); font-size: 13px; }
+
+    /* ── Goal Row ── */
+    .g-row {
+      display: flex; align-items: center; gap: 11px;
+      padding: 11px 20px; transition: background var(--tr);
+      position: relative;
+    }
+    .g-wrap:not(:last-child) { border-bottom: 1px solid var(--border-lt); }
+    .g-row:hover { background: var(--surface-2); }
+    .g-row.shared-row { background: var(--cs-bg); }
+    .g-row.shared-row:hover { background: #DDF0E7; }
+
+    .chk {
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid var(--border); background: var(--surface);
+      cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: transparent; transition: all var(--tr);
+    }
+    .chk:hover { border-color: var(--txt-3); }
+    .chk.on { background: var(--txt-1); border-color: var(--txt-1); color: white; }
+    .chk i { width: 11px; height: 11px; }
+
+    .g-text { flex: 1; font-size: 14px; color: var(--txt-1); line-height: 1.4; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .g-text.done { text-decoration: line-through; color: var(--txt-3); }
+
+    .shared-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--cs); background: var(--cs-bg); border: 1px solid var(--cs-line);
+      border-radius: 999px; padding: 2px 8px; flex-shrink: 0;
+    }
+    .shared-tag i { width: 9px; height: 9px; }
+
+    /* counter */
+    .ctr { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    .dots { display: flex; gap: 4px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--border); background: transparent; transition: all 0.12s; }
+    .dot.on { background: var(--txt-1); border-color: var(--txt-1); }
+    .ctr-val { font-size: 12px; font-weight: 500; color: var(--txt-3); min-width: 26px; text-align: center; }
+    .ctr-btn {
+      width: 24px; height: 24px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--txt-2); transition: all var(--tr);
+    }
+    .ctr-btn:hover { background: var(--border-lt); color: var(--txt-1); }
+    .ctr-btn:disabled { opacity: 0.3; pointer-events: none; }
+    .ctr-btn i { width: 12px; height: 12px; }
+
+    .g-acts { display: none; gap: 3px; flex-shrink: 0; }
+    .g-row:hover .g-acts { display: flex; }
+    .g-row.confirming .g-acts { display: flex; }
+    .del-btn {
+      width: 22px; height: 22px; border-radius: 5px;
+      border: none; background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--txt-3); transition: all var(--tr);
+    }
+    .del-btn:hover { background: #FEE2E2; color: #DC2626; }
+    .del-btn i { width: 13px; height: 13px; }
+
+    /* inline delete confirmation */
+    .confirm-del {
+      display: none; align-items: center; gap: 6px; flex-shrink: 0;
+    }
+    .g-row.confirming .confirm-del { display: flex; }
+    .g-row.confirming .g-acts { display: none !important; }
+    .confirm-del-lbl { font-size: 12px; color: var(--txt-2); white-space: nowrap; }
+    .confirm-yes {
+      padding: 3px 10px; border-radius: 5px; border: none;
+      background: #FEE2E2; color: #DC2626;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: all var(--tr);
+    }
+    .confirm-yes:hover { background: #FECACA; }
+    .confirm-no {
+      width: 20px; height: 20px; border-radius: 5px; border: none;
+      background: transparent; color: var(--txt-3); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all var(--tr);
+    }
+    .confirm-no:hover { background: var(--border-lt); color: var(--txt-1); }
+    .confirm-no i { width: 12px; height: 12px; }
+
+    /* notes section */
+    .g-wrap { border-bottom: 1px solid var(--border-lt); }
+    .g-wrap:last-child { border-bottom: none; }
+    .g-wrap .g-row { border-bottom: none; }
+    .notes-toggle {
+      width: 22px; height: 22px; border-radius: 5px; border: none;
+      background: transparent; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--txt-3); transition: all var(--tr);
+    }
+    .notes-toggle:hover { background: var(--border-lt); color: var(--txt-2); }
+    .notes-toggle.open { color: var(--txt-1); background: var(--border-lt); }
+    .notes-toggle i { width: 13px; height: 13px; transition: transform 0.15s; }
+    .notes-toggle.open i { transform: rotate(180deg); }
+    .notes-area {
+      display: none; padding: 0 20px 12px;
+    }
+    .notes-area.open { display: block; }
+    .notes-inp {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid var(--border); border-radius: var(--r-sm);
+      font-size: 13px; color: var(--txt-1); background: var(--surface-2);
+      outline: none; resize: none; line-height: 1.5;
+      font-family: inherit;
+      transition: border-color var(--tr), background var(--tr);
+      min-height: 64px;
+    }
+    .notes-inp:focus { border-color: var(--txt-2); background: var(--surface); }
+    .notes-inp::placeholder { color: var(--txt-3); }
+
+    /* shared divider */
+    .s-div { display: flex; align-items: center; gap: 8px; padding: 10px 20px 4px; margin-top: 4px; }
+    .s-div-line { flex: 1; height: 1px; background: var(--cs-line); }
+    .s-div-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--cs); }
+
+    /* ── Add button ── */
+    .add-btn {
+      width: 100%; padding: 12px 20px;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 500; color: var(--txt-3);
+      background: var(--surface); border: 1.5px dashed var(--border);
+      border-radius: var(--r); cursor: pointer; transition: all var(--tr);
+    }
+    .add-btn:hover { border-color: var(--txt-3); color: var(--txt-2); background: var(--surface-2); }
+    .add-btn i { width: 14px; height: 14px; }
+
+    /* ── Overlay / Modal ── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(24,24,27,0.38);
+      backdrop-filter: blur(5px);
+      z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border-radius: var(--r);
+      border: 1px solid var(--border); box-shadow: var(--sh-lg);
+      width: 100%; max-width: 480px;
+      transform: translateY(10px); transition: transform 0.18s ease;
+      max-height: 90vh; display: flex; flex-direction: column;
+    }
+    .overlay.open .modal { transform: translateY(0); }
+
+    .m-hdr {
+      padding: 20px 24px 16px; border-bottom: 1px solid var(--border-lt);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .m-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    .m-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+    .m-foot {
+      padding: 14px 24px; border-top: 1px solid var(--border-lt);
+      display: flex; gap: 10px; justify-content: flex-end; flex-shrink: 0;
+    }
+
+    /* fields */
+    .f-lbl { font-size: 11px; font-weight: 600; letter-spacing: 0.055em; text-transform: uppercase; color: var(--txt-3); margin-bottom: 6px; }
+    .f-inp {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid var(--border); border-radius: var(--r-sm);
+      font-size: 14px; color: var(--txt-1); background: var(--surface-2);
+      outline: none; transition: border-color var(--tr), background var(--tr);
+    }
+    .f-inp:focus { border-color: var(--txt-2); background: var(--surface); }
+    textarea.f-inp { resize: vertical; min-height: 70px; }
+
+    /* segment */
+    .seg { display: flex; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--r-sm); padding: 3px; gap: 3px; }
+    .seg-opt { flex: 1; padding: 7px 12px; border-radius: 7px; border: none; background: transparent; font-size: 13px; font-weight: 500; color: var(--txt-2); cursor: pointer; transition: all var(--tr); }
+    .seg-opt.on { background: var(--surface); color: var(--txt-1); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+    .cnt-field { display: none; }
+    .cnt-field.vis { display: block; }
+
+    /* toggle */
+    .tog-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--border-lt); }
+    .tog-lbl { font-size: 13px; font-weight: 500; color: var(--txt-2); }
+    .tog { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .tog input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .tog-track { position: absolute; inset: 0; border-radius: 999px; background: var(--border); cursor: pointer; transition: background var(--tr); }
+    .tog-track::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; top: 3px; left: 3px; transition: transform var(--tr); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .tog input:checked + .tog-track { background: var(--txt-1); }
+    .tog input:checked + .tog-track::after { transform: translateX(18px); }
+
+    /* buttons */
+    .btn { padding: 9px 18px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all var(--tr); }
+    .btn-pri { background: var(--txt-1); color: white; }
+    .btn-pri:hover { background: #2D2D30; }
+    .btn-ghost { background: transparent; color: var(--txt-2); border-color: var(--border); }
+    .btn-ghost:hover { background: var(--border-lt); color: var(--txt-1); }
+    .btn-sm { padding: 6px 13px; font-size: 12px; }
+
+    /* info/note box */
+    .info-box { font-size: 12px; color: var(--txt-3); line-height: 1.6; background: var(--border-lt); border-radius: var(--r-sm); padding: 12px 14px; }
+    .info-box strong { color: var(--txt-2); }
+    .info-box ol, .info-box ul { padding-left: 16px; margin-top: 6px; }
+    .info-box li { margin-top: 3px; }
+
+    /* ── History ── */
+    .hist-week {
+      border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden;
+    }
+    .hist-week + .hist-week { margin-top: 10px; }
+    .hist-week-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; cursor: pointer; background: var(--surface-2);
+      transition: background var(--tr);
+    }
+    .hist-week-hdr:hover { background: var(--border-lt); }
+    .hist-week-title { font-size: 13px; font-weight: 600; color: var(--txt-1); }
+    .hist-week-meta { font-size: 12px; color: var(--txt-3); }
+    .hist-week-body { display: none; border-top: 1px solid var(--border-lt); }
+    .hist-week-body.open { display: block; }
+
+    .hist-person { padding: 12px 16px; }
+    .hist-person + .hist-person { border-top: 1px solid var(--border-lt); }
+    .hist-person-name {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--txt-3); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .hist-goal-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; color: var(--txt-2); }
+    .hist-goal-row i { width: 13px; height: 13px; flex-shrink: 0; }
+    .hist-goal-row.hit { color: var(--txt-1); }
+    .hist-goal-row.hit i { color: #22C55E; }
+    .hist-goal-row.miss i { color: var(--txt-3); }
+
+    .stat-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600;
+      border-radius: 999px; padding: 2px 9px;
+    }
+    .stat-pill.good { background: #DCFCE7; color: #15803D; }
+    .stat-pill.mid  { background: #FEF9C3; color: #A16207; }
+    .stat-pill.low  { background: #FEE2E2; color: #B91C1C; }
+
+    /* ── Share / Sync ── */
+    .sync-status-row {
+      display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+      background: var(--surface-2); border-radius: var(--r-sm); border: 1px solid var(--border);
+    }
+    .sync-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .sync-status-txt { flex: 1; font-size: 13px; color: var(--txt-2); }
+    .copy-link-row { display: flex; gap: 8px; }
+    .copy-link-row .f-inp { flex: 1; font-size: 12px; color: var(--txt-3); background: var(--surface-2); }
+
+    .step-list { counter-reset: steps; }
+    .step { display: flex; gap: 10px; padding: 6px 0; }
+    .step-num {
+      counter-increment: steps;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--border); color: var(--txt-2);
+      font-size: 11px; font-weight: 600; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-txt { font-size: 12px; color: var(--txt-2); line-height: 1.5; padding-top: 2px; }
+    .step-txt a { color: var(--txt-1); }
+    .step-txt code { background: var(--border-lt); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+      .main { padding: 20px 16px 48px; }
+      .hdr-in { padding: 0 16px; }
+      .week-chip { display: none; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .pcol { animation: fadeUp 0.25s ease both; }
+    .pcol:nth-child(2) { animation-delay: 0.06s; }
+
+    .divider { height: 1px; background: var(--border-lt); margin: 4px 0; }
+  </style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="brand">
+      <i data-lucide="activity"></i>
+      <span class="brand-name">Rollie</span>
+      <span class="sync-dot" id="sync-dot" title="Not synced — local only"></span>
+    </div>
+    <div class="week-chip">
+      <i data-lucide="calendar"></i>
+      <span id="week-lbl">—</span>
+    </div>
+    <button class="icon-btn" id="hist-btn" title="History"><i data-lucide="clock"></i></button>
+    <button class="icon-btn" id="share-btn" title="Share &amp; Sync"><i data-lucide="share-2"></i></button>
+    <button class="icon-btn" id="settings-btn" title="Settings"><i data-lucide="settings"></i></button>
+  </div>
+</header>
+
+<main class="main">
+  <div class="grid" id="grid"></div>
+</main>
+
+<!-- ── Add Goal Modal ── -->
+<div class="overlay" id="add-modal">
+  <div class="modal">
+    <div class="m-hdr">
+      <span class="m-title">Add Goal</span>
+      <button class="icon-btn" id="am-close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="m-body">
+      <div>
+        <div class="f-lbl">Goal</div>
+        <input class="f-inp" id="g-text" type="text" placeholder="e.g. Go to the gym" maxlength="80" autocomplete="off">
+      </div>
+      <div>
+        <div class="f-lbl">Completion type</div>
+        <div class="seg" id="type-seg">
+          <button class="seg-opt on" data-t="single">Single check-off</button>
+          <button class="seg-opt" data-t="counter">Multiple times</button>
+        </div>
+      </div>
+      <div class="cnt-field" id="cnt-field">
+        <div class="f-lbl">Times per week</div>
+        <input class="f-inp" id="g-cnt" type="number" min="2" max="14" value="3">
+      </div>
+      <div class="tog-row">
+        <span class="tog-lbl">Shared goal — appears for both people</span>
+        <label class="tog">
+          <input type="checkbox" id="g-shared">
+          <span class="tog-track"></span>
+        </label>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-ghost" id="am-cancel">Cancel</button>
+      <button class="btn btn-pri" id="am-submit">Add Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── History Modal ── -->
+<div class="overlay" id="hist-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="m-hdr">
+      <span class="m-title">Past Weeks</span>
+      <button class="icon-btn" id="hm-close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="m-body" id="hist-body">
+      <p style="color:var(--txt-3);font-size:13px;text-align:center;padding:12px 0">No history yet — complete your first week to see results here.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Share Modal ── -->
+<div class="overlay" id="share-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="m-hdr">
+      <span class="m-title">Share &amp; Sync</span>
+      <button class="icon-btn" id="shm-close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="m-body" id="share-body">
+      <!-- rendered by JS -->
+    </div>
+    <div class="m-foot" id="share-foot">
+      <!-- rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div class="overlay" id="settings-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="m-hdr">
+      <span class="m-title">Settings</span>
+      <button class="icon-btn" id="sm-close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="m-body">
+      <div class="tog-row" style="border-top:none;padding-top:0">
+        <div>
+          <span class="tog-lbl">Browser notification</span>
+          <div style="font-size:12px;color:var(--txt-3);margin-top:2px">Reminder every Saturday at 9:00 am</div>
+        </div>
+        <label class="tog">
+          <input type="checkbox" id="notif-tog">
+          <span class="tog-track"></span>
+        </label>
+      </div>
+      <div class="divider"></div>
+      <div style="padding-top:4px">
+        <div class="f-lbl">Danger zone</div>
+        <button class="btn btn-ghost btn-sm" id="reset-history-btn" style="color:#DC2626;border-color:#FECACA;margin-top:6px">
+          Clear all history
+        </button>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-ghost" id="sm-cancel">Close</button>
+      <button class="btn btn-pri" id="sm-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ───────── Utilities ───────── */
+
+function weekId(d = new Date()) {
+  const u = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  u.setUTCDate(u.getUTCDate() + 4 - (u.getUTCDay() || 7));
+  const y0 = new Date(Date.UTC(u.getUTCFullYear(), 0, 1));
+  const w  = Math.ceil((((u - y0) / 86400000) + 1) / 7);
+  return `${u.getUTCFullYear()}-W${String(w).padStart(2,'0')}`;
+}
+
+function weekLabel(d = new Date()) {
+  const u = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  u.setUTCDate(u.getUTCDate() + 4 - (u.getUTCDay() || 7));
+  const y0 = new Date(Date.UTC(u.getUTCFullYear(), 0, 1));
+  const w  = Math.ceil((((u - y0) / 86400000) + 1) / 7);
+  return `Week ${w}, ${u.getUTCFullYear()}`;
+}
+
+function uid()  { return Math.random().toString(36).slice(2,10); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function initials(n) { return n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase() || '?'; }
+
+const CW = weekId();
+
+/* ───────── History helpers ───────── */
+
+function goalHit(g) {
+  return g.type === 'counter' ? (g.count||0) >= (g.target||1) : !!g.done;
+}
+
+function captureHistory(data) {
+  const record = {
+    weekId:    data.weekId || CW,
+    weekLabel: weekLabel(),
+    persons: data.persons.map((p, i) => {
+      const goals = (data.personalGoals[i]||[]).map(g => ({
+        text: g.text, type: g.type, target: g.target||1, count: g.count||0, done: !!g.done, hit: goalHit(g)
+      }));
+      const done  = goals.filter(g=>g.hit).length;
+      return { name: p.name, goals, done, total: goals.length };
+    }),
+    sharedGoals: data.sharedGoals.map(g => ({
+      text: g.text, type: g.type, target: g.target||1, count: g.count||0, done: !!g.done, hit: goalHit(g)
+    }))
+  };
+  record.sharedDone  = record.sharedGoals.filter(g=>g.hit).length;
+  record.sharedTotal = record.sharedGoals.length;
+  return record;
+}
+
+/* ───────── State ───────── */
+
+const DEFAULTS = {
+  persons:       [{ name: 'Person 1' }, { name: 'Person 2' }],
+  personalGoals: [[], []],
+  sharedGoals:   [],
+  notifications: false,
+  history:       [],
+  weekId:        CW
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem('accord-v3');
+    if (!raw) return structuredClone(DEFAULTS);
+    const d = JSON.parse(raw);
+    if (!Array.isArray(d.personalGoals))    d.personalGoals = [[],[]];
+    if (!Array.isArray(d.personalGoals[0])) d.personalGoals[0] = [];
+    if (!Array.isArray(d.personalGoals[1])) d.personalGoals[1] = [];
+    if (!Array.isArray(d.sharedGoals))      d.sharedGoals = [];
+    if (!Array.isArray(d.history))          d.history = [];
+    if (!Array.isArray(d.persons))          d.persons = structuredClone(DEFAULTS.persons);
+
+    if (d.weekId !== CW) {
+      // Save history before resetting
+      const rec = captureHistory(d);
+      const totalGoals = rec.persons.reduce((s,p)=>s+p.total,0) + rec.sharedTotal;
+      if (totalGoals > 0) d.history.unshift(rec);
+      // Reset completions, preserve goals and names
+      for (const arr of d.personalGoals)
+        for (const g of arr) { g.done = false; g.count = 0; }
+      for (const g of d.sharedGoals) { g.done = false; g.count = 0; }
+      d.weekId = CW;
+    }
+    return d;
+  } catch { return structuredClone(DEFAULTS); }
+}
+
+function save() {
+  localStorage.setItem('accord-v3', JSON.stringify(S));
+  syncOut();
+}
+
+let S = load();
+
+/* ───────── Firebase Sync ───────── */
+
+const FB_DB_URL  = 'https://project--1-8f447-default-rtdb.asia-southeast1.firebasedatabase.app';
+const ROOM_PARAM = 'room';
+
+function roomId() {
+  // Check URL first
+  const fromUrl = new URLSearchParams(location.search).get(ROOM_PARAM);
+  if (fromUrl) {
+    localStorage.setItem('accord-room', fromUrl);
+    return fromUrl;
+  }
+  // Fall back to stored room
+  let stored = localStorage.getItem('accord-room');
+  if (!stored) {
+    stored = uid();
+    localStorage.setItem('accord-room', stored);
+    const url = new URL(location.href);
+    url.searchParams.set(ROOM_PARAM, stored);
+    history.replaceState({}, '', url.toString());
+  }
+  return stored;
+}
+
+function fbUrl() {
+  return `${FB_DB_URL}/rooms/${roomId()}.json`;
+}
+
+let _lastRemoteTs = 0;
+let _syncState    = 'off'; // off | live | syncing | error
+
+function setSyncDot(state) {
+  _syncState = state;
+  const dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.className = 'sync-dot ' + state;
+  const labels = { off: 'Not synced', live: 'Synced', syncing: 'Syncing…', error: 'Sync error — check Firebase rules' };
+  dot.title = labels[state] || '';
+}
+
+async function syncOut() {
+  setSyncDot('syncing');
+  try {
+    const body = Object.assign({}, S, { _ts: Date.now() });
+    await fetch(fbUrl(), { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+    _lastRemoteTs = body._ts;
+    setSyncDot('live');
+  } catch { setSyncDot('error'); }
+}
+
+async function syncIn() {
+  try {
+    const res = await fetch(fbUrl());
+    if (!res.ok) { setSyncDot('error'); return; }
+    const remote = await res.json();
+    if (!remote || typeof remote !== 'object') { setSyncDot('live'); return; }
+    if ((remote._ts || 0) > _lastRemoteTs) {
+      _lastRemoteTs = remote._ts;
+      delete remote._ts;
+      const notifLocal = S.notifications;
+      S = Object.assign(structuredClone(DEFAULTS), remote);
+      S.notifications = notifLocal;
+      if (!Array.isArray(S.history)) S.history = [];
+      localStorage.setItem('accord-v3', JSON.stringify(S));
+      render();
+    }
+    setSyncDot('live');
+  } catch { setSyncDot('error'); }
+}
+
+// Poll every 4s
+setInterval(syncIn, 4000);
+
+/* ───────── Render ───────── */
+
+function progress(pi) {
+  const all = [...(S.personalGoals[pi]||[]), ...S.sharedGoals];
+  if (!all.length) return null;
+  const done = all.filter(goalHit).length;
+  return { done, total: all.length, pct: Math.round(done / all.length * 100) };
+}
+
+function goalRow(g, pi, shared) {
+  const s     = shared ? ' shared-row' : '';
+  const notes = esc(g.notes || '');
+  const notesOpen = g._notesOpen ? ' open' : '';
+
+  const actionsHtml = `
+    <button class="notes-toggle${notesOpen}" onclick="toggleNotes('${g.id}',${pi},${shared})" title="Notes">
+      <i data-lucide="chevron-down"></i>
+    </button>
+    <div class="g-acts">
+      <button class="del-btn" onclick="askDel('${g.id}',${pi},${shared})" title="Remove"><i data-lucide="trash-2"></i></button>
+    </div>
+    <div class="confirm-del">
+      <span class="confirm-del-lbl">Remove goal?</span>
+      <button class="confirm-yes" onclick="confirmDel('${g.id}',${pi},${shared})">Delete</button>
+      <button class="confirm-no" onclick="cancelDel('${g.id}',${pi},${shared})"><i data-lucide="x"></i></button>
+    </div>`;
+
+  const notesHtml = `
+    <div class="notes-area${notesOpen}">
+      <textarea class="notes-inp" rows="2"
+        placeholder="Add a note — what did you do, how did it go…"
+        onchange="saveNotes('${g.id}',${pi},${shared},this.value)"
+        onblur="saveNotes('${g.id}',${pi},${shared},this.value)"
+      >${notes}</textarea>
+    </div>`;
+
+  if (g.type === 'counter') {
+    const c = g.count||0, t = g.target||3;
+    const dots = Array.from({length:t},(_,i)=>`<span class="dot${i<c?' on':''}"></span>`).join('');
+    return `
+<div class="g-wrap">
+  <div class="g-row${s}" id="gr-${g.id}">
+    <span class="g-text${c>=t?' done':''}">
+      ${esc(g.text)}
+      ${shared?`<span class="shared-tag"><i data-lucide="users"></i>Shared</span>`:''}
+    </span>
+    <div class="ctr">
+      <div class="dots">${dots}</div>
+      <button class="ctr-btn" onclick="decr('${g.id}',${pi},${shared})" ${c<=0?'disabled':''} title="Undo one"><i data-lucide="minus"></i></button>
+      <span class="ctr-val">${c}/${t}</span>
+      <button class="ctr-btn" onclick="incr('${g.id}',${pi},${shared})" ${c>=t?'disabled':''} title="Add one"><i data-lucide="plus"></i></button>
+    </div>
+    ${actionsHtml}
+  </div>
+  ${notesHtml}
+</div>`;
+  }
+
+  return `
+<div class="g-wrap">
+  <div class="g-row${s}" id="gr-${g.id}">
+    <button class="chk${g.done?' on':''}" onclick="toggle('${g.id}',${pi},${shared})" title="${g.done?'Mark incomplete':'Mark complete'}"><i data-lucide="check"></i></button>
+    <span class="g-text${g.done?' done':''}">
+      ${esc(g.text)}
+      ${shared?`<span class="shared-tag"><i data-lucide="users"></i>Shared</span>`:''}
+    </span>
+    ${actionsHtml}
+  </div>
+  ${notesHtml}
+</div>`;
+}
+
+function col(pi) {
+  const p    = S.persons[pi];
+  const pcls = pi === 0 ? 'p1' : 'p2';
+  const pers = S.personalGoals[pi] || [];
+  const shar = S.sharedGoals;
+  const prog = progress(pi);
+
+  const persHtml = pers.length
+    ? pers.map(g => goalRow(g, pi, false)).join('')
+    : `<div class="empty">No personal goals yet</div>`;
+
+  const sharHtml = shar.length ? `
+    <div class="s-div"><div class="s-div-line"></div><span class="s-div-lbl">Shared</span><div class="s-div-line"></div></div>
+    ${shar.map(g => goalRow(g, pi, true)).join('')}` : '';
+
+  const progHtml = prog ? `
+    <div class="prog-wrap">
+      <div class="prog-bar"><div class="prog-fill" style="width:${prog.pct}%"></div></div>
+      <div class="prog-lbl">${prog.done} of ${prog.total} goals complete this week</div>
+    </div>` : '';
+
+  return `
+<div class="pcol ${pcls}" id="col-${pi}">
+  <div class="p-head">
+    <div class="avatar">${initials(p.name)}</div>
+    <div class="p-meta">
+      <input class="p-name" value="${esc(p.name)}" onchange="rename(${pi},this.value)" onblur="rename(${pi},this.value)" maxlength="30" aria-label="Person name">
+      <div class="p-sub">Weekly goals</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title"><i data-lucide="target"></i>Goals this week</div>
+    </div>
+    <div class="card-body">${persHtml}${sharHtml}</div>
+    ${progHtml}
+  </div>
+  <button class="add-btn" onclick="openAdd(${pi})"><i data-lucide="plus"></i>Add goal</button>
+</div>`;
+}
+
+function statPillClass(pct) {
+  return pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'low';
+}
+
+function renderHistory() {
+  const body = document.getElementById('hist-body');
+  if (!S.history || !S.history.length) {
+    body.innerHTML = `<p style="color:var(--txt-3);font-size:13px;text-align:center;padding:12px 0">No history yet — complete your first week to see results here.</p>`;
+    return;
+  }
+
+  body.innerHTML = S.history.map((rec, idx) => {
+    const allGoals = rec.persons.reduce((s,p)=>s+p.total,0) + rec.sharedTotal;
+    const allDone  = rec.persons.reduce((s,p)=>s+p.done,0) + rec.sharedDone;
+    const pct = allGoals ? Math.round(allDone/allGoals*100) : 0;
+    const pillCls = statPillClass(pct);
+
+    const personsHtml = rec.persons.map(p => {
+      const pPct = p.total ? Math.round(p.done/p.total*100) : null;
+      const pPillCls = pPct !== null ? statPillClass(pPct) : '';
+      const goalsHtml = p.goals.map(g => {
+        const hitCls = g.hit ? 'hit' : 'miss';
+        const icon   = g.hit ? 'check-circle-2' : 'circle';
+        const detail = g.type === 'counter' ? ` <span style="color:var(--txt-3)">${g.count}/${g.target}×</span>` : '';
+        return `<div class="hist-goal-row ${hitCls}"><i data-lucide="${icon}"></i>${esc(g.text)}${detail}</div>`;
+      }).join('');
+      return `
+<div class="hist-person">
+  <div class="hist-person-name">
+    <span>${esc(p.name)}</span>
+    ${pPct !== null ? `<span class="stat-pill ${pPillCls}">${pPct}%</span>` : ''}
+  </div>
+  ${goalsHtml || '<div style="font-size:12px;color:var(--txt-3)">No personal goals</div>'}
+</div>`;
+    }).join('');
+
+    const sharedHtml = rec.sharedGoals.length ? `
+<div class="hist-person">
+  <div class="hist-person-name">
+    <span style="color:var(--cs)">Shared Goals</span>
+    ${rec.sharedTotal ? `<span class="stat-pill ${statPillClass(Math.round(rec.sharedDone/rec.sharedTotal*100))}">${Math.round(rec.sharedDone/rec.sharedTotal*100)}%</span>` : ''}
+  </div>
+  ${rec.sharedGoals.map(g => {
+    const hitCls = g.hit ? 'hit' : 'miss';
+    const detail = g.type === 'counter' ? ` <span style="color:var(--txt-3)">${g.count}/${g.target}×</span>` : '';
+    return `<div class="hist-goal-row ${hitCls}"><i data-lucide="${g.hit?'check-circle-2':'circle'}"></i>${esc(g.text)}${detail}</div>`;
+  }).join('')}
+</div>` : '';
+
+    return `
+<div class="hist-week">
+  <div class="hist-week-hdr" onclick="toggleHistWeek(${idx})">
+    <div>
+      <div class="hist-week-title">${esc(rec.weekLabel)}</div>
+      <div class="hist-week-meta">${allDone} of ${allGoals} goals completed</div>
+    </div>
+    <span class="stat-pill ${pillCls}">${pct}%</span>
+  </div>
+  <div class="hist-week-body" id="hw-${idx}">
+    ${personsHtml}${sharedHtml}
+  </div>
+</div>`;
+  }).join('');
+
+  lucide.createIcons({ nodes: [body] });
+}
+
+function toggleHistWeek(idx) {
+  const body = document.getElementById(`hw-${idx}`);
+  if (body) body.classList.toggle('open');
+}
+
+function renderShareModal() {
+  const room     = roomId();
+  const shareUrl = `${location.origin}${location.pathname}?room=${room}`;
+  const body     = document.getElementById('share-body');
+  const foot     = document.getElementById('share-foot');
+  const dotColor = _syncState==='live' ? '#22C55E' : _syncState==='error' ? '#EF4444' : '#F59E0B';
+
+  body.innerHTML = `
+<div class="sync-status-row">
+  <div class="sync-status-dot" style="background:${dotColor}"></div>
+  <div class="sync-status-txt">${_syncState==='live' ? 'Live — syncing in real time' : _syncState==='error' ? 'Sync error — check Firebase rules are set to test mode' : 'Connecting…'}</div>
+</div>
+<div>
+  <div class="f-lbl">Share this link with your partner</div>
+  <div class="copy-link-row">
+    <input class="f-inp" id="share-url-inp" value="${esc(shareUrl)}" readonly onclick="this.select()">
+    <button class="btn btn-pri btn-sm" onclick="copyShareUrl()">Copy</button>
+  </div>
+  <div style="font-size:12px;color:var(--txt-3);margin-top:8px">Both of you need to have this page open at the same URL. Changes sync every 4 seconds.</div>
+</div>`;
+
+  foot.innerHTML = `<button class="btn btn-ghost" onclick="closeShare()">Close</button>`;
+  lucide.createIcons({ nodes: [body] });
+}
+
+function copyShareUrl() {
+  const inp = document.getElementById('share-url-inp');
+  if (!inp) return;
+  navigator.clipboard.writeText(inp.value).then(() => {
+    const btn = inp.nextElementSibling;
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(()=>btn.textContent='Copy', 2000); }
+  });
+}
+
+function closeShare() { document.getElementById('share-modal').classList.remove('open'); }
+
+function render() {
+  document.getElementById('week-lbl').textContent = weekLabel();
+  document.getElementById('grid').innerHTML = col(0) + col(1);
+  lucide.createIcons();
+}
+
+/* ───────── Actions ───────── */
+
+function rename(pi, val) {
+  S.persons[pi].name = val.trim() || `Person ${pi+1}`;
+  save();
+  const av = document.querySelector(`#col-${pi} .avatar`);
+  if (av) av.textContent = initials(S.persons[pi].name);
+}
+
+function toggle(id, pi, shared) {
+  const arr = shared ? S.sharedGoals : S.personalGoals[pi];
+  const g = arr.find(g=>g.id===id);
+  if (g) g.done = !g.done;
+  save(); render();
+}
+
+function incr(id, pi, shared) {
+  const arr = shared ? S.sharedGoals : S.personalGoals[pi];
+  const g = arr.find(g=>g.id===id);
+  if (g) g.count = Math.min((g.count||0)+1, g.target);
+  save(); render();
+}
+
+function decr(id, pi, shared) {
+  const arr = shared ? S.sharedGoals : S.personalGoals[pi];
+  const g = arr.find(g=>g.id===id);
+  if (g) g.count = Math.max((g.count||0)-1, 0);
+  save(); render();
+}
+
+function askDel(id, pi, shared) {
+  const row = document.getElementById(`gr-${id}`);
+  if (row) row.classList.add('confirming');
+}
+
+function cancelDel(id, pi, shared) {
+  const row = document.getElementById(`gr-${id}`);
+  if (row) row.classList.remove('confirming');
+}
+
+function confirmDel(id, pi, shared) {
+  if (shared) S.sharedGoals = S.sharedGoals.filter(g=>g.id!==id);
+  else        S.personalGoals[pi] = S.personalGoals[pi].filter(g=>g.id!==id);
+  save(); render();
+}
+
+function toggleNotes(id, pi, shared) {
+  const arr = shared ? S.sharedGoals : S.personalGoals[pi];
+  const g = arr.find(g=>g.id===id);
+  if (g) g._notesOpen = !g._notesOpen;
+  // Toggle DOM directly to avoid full re-render losing textarea focus
+  const row = document.getElementById(`gr-${id}`);
+  if (row) {
+    const toggle = row.querySelector('.notes-toggle');
+    const area   = row.parentElement.querySelector('.notes-area');
+    if (toggle) toggle.classList.toggle('open');
+    if (area)   area.classList.toggle('open');
+  }
+}
+
+function saveNotes(id, pi, shared, value) {
+  const arr = shared ? S.sharedGoals : S.personalGoals[pi];
+  const g = arr.find(g=>g.id===id);
+  if (g) g.notes = value;
+  save();
+}
+
+/* ───────── Add Modal ───────── */
+
+let addFor  = 0;
+let selType = 'single';
+
+function openAdd(pi) {
+  addFor = pi; selType = 'single';
+  document.getElementById('g-text').value = '';
+  document.getElementById('g-cnt').value  = '3';
+  document.getElementById('g-shared').checked = false;
+  document.getElementById('cnt-field').classList.remove('vis');
+  document.querySelectorAll('.seg-opt').forEach(b => b.classList.toggle('on', b.dataset.t === 'single'));
+  document.getElementById('add-modal').classList.add('open');
+  setTimeout(() => document.getElementById('g-text').focus(), 80);
+}
+
+function closeAdd() { document.getElementById('add-modal').classList.remove('open'); }
+
+document.getElementById('am-close').onclick  = closeAdd;
+document.getElementById('am-cancel').onclick = closeAdd;
+document.getElementById('add-modal').addEventListener('click', e => { if (e.target===e.currentTarget) closeAdd(); });
+
+document.getElementById('type-seg').addEventListener('click', e => {
+  const btn = e.target.closest('.seg-opt');
+  if (!btn) return;
+  selType = btn.dataset.t;
+  document.querySelectorAll('.seg-opt').forEach(b => b.classList.toggle('on', b===btn));
+  document.getElementById('cnt-field').classList.toggle('vis', selType==='counter');
+});
+
+document.getElementById('am-submit').onclick = function() {
+  const text = document.getElementById('g-text').value.trim();
+  if (!text) { document.getElementById('g-text').focus(); return; }
+  const shared = document.getElementById('g-shared').checked;
+  const goal = {
+    id:     uid(), text,
+    type:   selType,
+    target: selType==='counter' ? (parseInt(document.getElementById('g-cnt').value,10)||3) : 1,
+    done:   false, count: 0
+  };
+  if (shared) S.sharedGoals.push(goal);
+  else        S.personalGoals[addFor].push(goal);
+  save(); closeAdd(); render();
+};
+
+document.getElementById('g-text').addEventListener('keydown', e => {
+  if (e.key==='Enter') document.getElementById('am-submit').click();
+});
+
+/* ───────── History Modal ───────── */
+
+document.getElementById('hist-btn').onclick = function() {
+  renderHistory();
+  document.getElementById('hist-modal').classList.add('open');
+};
+document.getElementById('hm-close').onclick = function() {
+  document.getElementById('hist-modal').classList.remove('open');
+};
+document.getElementById('hist-modal').addEventListener('click', e => {
+  if (e.target===e.currentTarget) document.getElementById('hist-modal').classList.remove('open');
+});
+
+/* ───────── Share Modal ───────── */
+
+document.getElementById('share-btn').onclick = function() {
+  renderShareModal();
+  document.getElementById('share-modal').classList.add('open');
+};
+document.getElementById('shm-close').onclick = closeShare;
+document.getElementById('share-modal').addEventListener('click', e => {
+  if (e.target===e.currentTarget) closeShare();
+});
+
+/* ───────── Settings Modal ───────── */
+
+document.getElementById('settings-btn').onclick = function() {
+  document.getElementById('notif-tog').checked = S.notifications||false;
+  document.getElementById('settings-modal').classList.add('open');
+  lucide.createIcons();
+};
+
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+
+document.getElementById('sm-close').onclick  = closeSettings;
+document.getElementById('sm-cancel').onclick = closeSettings;
+document.getElementById('settings-modal').addEventListener('click', e => {
+  if (e.target===e.currentTarget) closeSettings();
+});
+
+document.getElementById('sm-save').onclick = async function() {
+  const want = document.getElementById('notif-tog').checked;
+  if (want && Notification.permission === 'default') {
+    const perm = await Notification.requestPermission();
+    S.notifications = perm === 'granted';
+  } else {
+    S.notifications = want && Notification.permission === 'granted';
+  }
+  document.getElementById('notif-tog').checked = S.notifications;
+  save();
+  closeSettings();
+};
+
+document.getElementById('reset-history-btn').onclick = function() {
+  if (!confirm('Clear all past week history? This cannot be undone.')) return;
+  S.history = [];
+  save();
+  closeSettings();
+};
+
+/* ───────── Saturday 9am reminder ───────── */
+
+function checkReminder() {
+  if (!S.notifications || Notification.permission !== 'granted') return;
+  const now = new Date();
+  if (now.getDay()!==6 || now.getHours()!==9) return;
+  const key = `notif-${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  if (localStorage.getItem(key)) return;
+  localStorage.setItem(key, '1');
+  new Notification('Rollie — Weekly Check-in', {
+    body: 'Saturday check-in: time to review your goals and hold each other accountable.'
+  });
+}
+
+/* ───────── Init ───────── */
+
+render();
+setSyncDot('syncing');
+syncIn();   // initial pull; poll loop handles subsequent updates
+checkReminder();
+setInterval(checkReminder, 60_000);
+</script>
+</body>
+</html>
