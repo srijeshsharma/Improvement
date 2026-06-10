@@ -763,6 +763,7 @@ setInterval(syncIn, 4000);
 function progress(pi) {
   const pers = S.personalGoals[pi]||[];
   const shar = S.sharedGoals;
+  shar.forEach(ensureProgress);
   const total = pers.length + shar.length;
   if (!total) return null;
   const done = pers.filter(g => goalHit(g)).length
@@ -855,6 +856,7 @@ function col(pi) {
     ? pers.map(g => goalRow(g, pi, false)).join('')
     : `<div class="empty">No personal goals yet</div>`;
 
+  shar.forEach(ensureProgress);
   const sharHtml = shar.length ? `
     <div class="s-div"><div class="s-div-line"></div><span class="s-div-lbl">Shared</span><div class="s-div-line"></div></div>
     ${shar.map(g => goalRow(g, pi, true)).join('')}` : '';
